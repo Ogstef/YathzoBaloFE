@@ -16,11 +16,11 @@ export interface BackendGameState {
     sixes: number | null;
     upperBonus: number;
     upperTotal: number;
-    threeofkind: number | null;      // Backend uses lowercase
-    fourofkind: number | null;       // Backend uses lowercase
-    fullhouse: number | null;        // Backend uses lowercase
-    smallstraight: number | null;    // Backend uses lowercase
-    largestraight: number | null;    // Backend uses lowercase
+    threeofkind: number | null;
+    fourofkind: number | null;
+    fullhouse: number | null;
+    smallstraight: number | null;
+    largestraight: number | null;
     yahtzee: number | null;
     chance: number | null;
     lowerTotal: number;
@@ -36,11 +36,11 @@ export interface PossibleScores {
   fours: number;
   fives: number;
   sixes: number;
-  threeOfKind: number;    // Backend uses lowercase 'threeofkind'
-  fourOfKind: number;     // Backend uses lowercase 'fourofkind'
-  fullhouse: number;      // Backend uses lowercase 'fullhouse'
-  smallStraight: number;  // Backend uses lowercase 'smallstraight'
-  largeStraight: number;  // Backend uses lowercase 'largestraight'
+  threeOfKind: number;
+  fourOfKind: number;
+  fullhouse: number;
+  smallStraight: number;
+  largeStraight: number;
   yahtzee: number;
   chance: number;
 }
