@@ -2,24 +2,26 @@ import { useState } from 'react';
 import { GameState, ScoreCategory, ScoreSheet } from '../game/gameTypes';
 import { ScoreCalculator } from '../game/scoreCalculator';
 
-const initialScoreSheet: ScoreSheet = {
+const createInitialScoreSheet = (): ScoreSheet => ({
   ones: null, twos: null, threes: null, fours: null, fives: null, sixes: null,
   upperBonus: 0, upperTotal: 0,
   threeOfAKind: null, fourOfAKind: null, fullHouse: null,
   smallStraight: null, largeStraight: null, yahtzee: null, chance: null,
   lowerTotal: 0
-};
+});
+
+const createInitialGameState = (): GameState => ({
+  dice: [1, 1, 1, 1, 1],
+  selectedDice: [],
+  rollsLeft: 3,
+  currentRound: 1,
+  scoreSheet: createInitialScoreSheet(),
+  gameComplete: false,
+  totalScore: 0
+});
 
 export const useGame = () => {
-  const [gameState, setGameState] = useState<GameState>({
-    dice: [1, 1, 1, 1, 1],
-    selectedDice: [],
-    rollsLeft: 3,
-    currentRound: 1,
-    scoreSheet: initialScoreSheet,
-    gameComplete: false,
-    totalScore: 0
-  });
+  const [gameState, setGameState] = useState<GameState>(createInitialGameState);
 
   const rollDice = () => {
     if (gameState.rollsLeft <= 0) return;
@@ -77,6 +79,18 @@ export const useGame = () => {
     }));
   };
 
+  const newGame = () => {
+    setGameState({
+      dice: Array.from({ length: 5 }, () => Math.floor(Math.random() * 6) + 1),
+      selectedDice: [],
+      rollsLeft: 3,
+      currentRound: 1,
+      scoreSheet: createInitialScoreSheet(), // Create a fresh scoreSheet object
+      gameComplete: false,
+      totalScore: 0
+    });
+  };
+
   const getPossibleScores = () => {
     const categories: Array<{ category: ScoreCategory; name: string }> = [
       { category: 'ones', name: 'Ones' },
@@ -107,6 +121,7 @@ export const useGame = () => {
     rollDice,
     toggleDie,
     scoreCategory,
-    getPossibleScores
+    getPossibleScores,
+    newGame
   };
 };

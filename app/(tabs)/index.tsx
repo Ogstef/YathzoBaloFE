@@ -2,20 +2,63 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Die from '@/components/objects/Die';
 import { useGame } from '@/hooks/useGame';
-import React from 'react';
+import React, { useRef } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// import { soundManager } from '@/utils/sounds';
 
 export default function HomeScreen() {
-  const { gameState, rollDice, toggleDie, getPossibleScores, scoreCategory } = useGame();
+  const { gameState, rollDice, toggleDie, getPossibleScores, scoreCategory, newGame } = useGame();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const handleScoreSelect = (category: any) => {
     scoreCategory(category);
   };
 
+  const handleNewGame = () => {
+    console.log('New Game button pressed!'); // Debug log
+    // Simplified - no Alert for now to test
+    console.log('Starting new game...'); // Debug log
+    newGame();
+    // Scroll to top after starting new game
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
+  };
+
+  const handlePlayAgain = () => {
+    console.log('Play again clicked...'); // Debug log
+    newGame();
+    // Scroll to top after starting new game
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
+  };
+
+  // Debug: Log current game state
+  console.log('Current game state:', {
+    round: gameState.currentRound,
+    rollsLeft: gameState.rollsLeft,
+    totalScore: gameState.totalScore,
+    gameComplete: gameState.gameComplete,
+    dice: gameState.dice
+  });
+
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <ThemedText type="title" style={styles.title}>YathzoBalo! 🎲</ThemedText>
+      <ScrollView 
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.header}>
+          <ThemedText type="title" style={styles.title}>YathzoBalo! 🎲</ThemedText>
+          <TouchableOpacity 
+            style={styles.newGameButton} 
+            onPress={handleNewGame}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.newGameText}>New Game</Text>
+          </TouchableOpacity>
+        </View>
         
         {/* Game Info */}
         <View style={styles.gameInfo}>
@@ -28,7 +71,7 @@ export default function HomeScreen() {
         <View style={styles.diceContainer}>
           {gameState.dice.map((value, index) => (
             <Die
-              key={index}
+              key={`die-${index}-${value}`} // Force re-render with unique keys
               value={value}
               isSelected={gameState.selectedDice.includes(index)}
               onPress={() => toggleDie(index)}
@@ -135,6 +178,9 @@ export default function HomeScreen() {
             {gameState.scoreSheet.upperBonus > 0 && (
               <Text style={styles.bonus}>🎁 Upper Bonus: +35 points!</Text>
             )}
+            <TouchableOpacity style={styles.playAgainButton} onPress={handlePlayAgain}>
+              <Text style={styles.playAgainText}>🎮 Play Again</Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -156,6 +202,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 20,
   },
   gameInfo: {
     flexDirection: 'row',
@@ -313,6 +366,35 @@ const styles = StyleSheet.create({
   bonus: {
     color: '#FFD700',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  playAgainButton: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 25,
+    paddingVertical: 12,
+    borderRadius: 20,
+    elevation: 3,
+  },
+  playAgainText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  newGameButton: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 15,
+    elevation: 2,
+    // Add visual feedback
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  newGameText: {
+    color: 'white',
+    fontSize: 12,
     fontWeight: 'bold',
   },
 });
