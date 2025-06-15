@@ -3,45 +3,68 @@ import { ThemedView } from '@/components/ThemedView';
 import Die from '@/components/objects/Die';
 import { useGame } from '@/hooks/useGame';
 import React, { useRef } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-// import { soundManager } from '@/utils/sounds';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
-  const { gameState, rollDice, toggleDie, getPossibleScores, scoreCategory, newGame } = useGame();
+  const { 
+    gameState, 
+    currentGameId, 
+    loading, 
+    error,
+    possibleScores, // Add this line
+    rollDice, 
+    toggleDie, 
+    getPossibleScores, 
+    scoreCategory, 
+    newGame 
+  } = useGame();
+  
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const handleScoreSelect = (category: any) => {
-    scoreCategory(category);
+  const handleScoreSelect = async (category: any) => {
+    await scoreCategory(category);
   };
 
   const handleNewGame = () => {
-    console.log('New Game button pressed!'); // Debug log
-    // Simplified - no Alert for now to test
-    console.log('Starting new game...'); // Debug log
-    newGame();
-    // Scroll to top after starting new game
+    Alert.alert(
+      'New Game',
+      'Start a new game?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Yes', 
+          onPress: async () => {
+            await newGame('Player');
+            setTimeout(() => {
+              scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+            }, 100);
+          }
+        }
+      ]
+    );
+  };
+
+  const handlePlayAgain = async () => {
+    await newGame('Player');
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }, 100);
   };
 
-  const handlePlayAgain = () => {
-    console.log('Play again clicked...'); // Debug log
-    newGame();
-    // Scroll to top after starting new game
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    }, 100);
-  };
-
-  // Debug: Log current game state
-  console.log('Current game state:', {
-    round: gameState.currentRound,
-    rollsLeft: gameState.rollsLeft,
-    totalScore: gameState.totalScore,
-    gameComplete: gameState.gameComplete,
-    dice: gameState.dice
-  });
+  // Show error if API calls fail
+  if (error) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>❌ Connection Error</Text>
+          <Text style={styles.errorDetails}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => newGame('Player')}>
+            <Text style={styles.retryText}>🔄 Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -52,12 +75,23 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>YathzoBalo! 🎲</ThemedText>
           <TouchableOpacity 
-            style={styles.newGameButton} 
+            style={[styles.newGameButton, loading && styles.disabledButton]} 
             onPress={handleNewGame}
+            disabled={loading}
             activeOpacity={0.7}
           >
-            <Text style={styles.newGameText}>New Game</Text>
+            <Text style={styles.newGameText}>
+              {loading ? '...' : 'New Game'}
+            </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Connection Status */}
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusText}>
+            {currentGameId ? `🎮 Game #${currentGameId}` : '🔄 Connecting...'}
+          </Text>
+          {loading && <ActivityIndicator size="small" color="#2196F3" />}
         </View>
         
         {/* Game Info */}
@@ -71,7 +105,7 @@ export default function HomeScreen() {
         <View style={styles.diceContainer}>
           {gameState.dice.map((value, index) => (
             <Die
-              key={`die-${index}-${value}`} // Force re-render with unique keys
+              key={`die-${index}-${value}`}
               value={value}
               isSelected={gameState.selectedDice.includes(index)}
               onPress={() => toggleDie(index)}
@@ -83,13 +117,15 @@ export default function HomeScreen() {
         <TouchableOpacity 
           style={[
             styles.rollButton, 
-            gameState.rollsLeft === 0 && styles.disabledButton
+            (gameState.rollsLeft === 0 || loading) && styles.disabledButton
           ]} 
           onPress={rollDice}
-          disabled={gameState.rollsLeft === 0}
+          disabled={gameState.rollsLeft === 0 || loading}
         >
           <Text style={styles.rollButtonText}>
-            {gameState.rollsLeft === 0 ? 'CHOOSE A SCORE BELOW' : `ROLL DICE (${gameState.rollsLeft} left)`}
+            {loading ? 'Rolling...' : 
+             gameState.rollsLeft === 0 ? 'CHOOSE A SCORE BELOW' : 
+             `ROLL DICE (${gameState.rollsLeft} left)`}
           </Text>
         </TouchableOpacity>
 
@@ -102,6 +138,11 @@ export default function HomeScreen() {
         <View style={styles.scoresSection}>
           <Text style={styles.sectionTitle}>📊 Choose Your Score:</Text>
           
+          {/* Debug info */}
+          <Text style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 10 }}>
+            Debug: Dice=[{gameState.dice.join(',')}] GameId={currentGameId} PossibleScores={possibleScores ? 'loaded' : 'null'}
+          </Text>
+          
           {/* Upper Section */}
           <View style={styles.scoreGroup}>
             <Text style={styles.groupTitle}>Numbers (Upper Section):</Text>
@@ -111,10 +152,10 @@ export default function HomeScreen() {
                 style={[
                   styles.scoreButton, 
                   !isAvailable && styles.usedScoreButton,
-                  gameState.rollsLeft > 0 && styles.disabledScoreButton
+                  (gameState.rollsLeft > 0 || loading) && styles.disabledScoreButton
                 ]}
                 onPress={() => handleScoreSelect(category)}
-                disabled={!isAvailable || gameState.rollsLeft > 0}
+                disabled={!isAvailable || gameState.rollsLeft > 0 || loading}
               >
                 <View style={styles.scoreButtonContent}>
                   <Text style={[styles.scoreName, !isAvailable && styles.usedScoreText]}>
@@ -138,11 +179,11 @@ export default function HomeScreen() {
                 style={[
                   styles.scoreButton, 
                   !isAvailable && styles.usedScoreButton,
-                  gameState.rollsLeft > 0 && styles.disabledScoreButton,
+                  (gameState.rollsLeft > 0 || loading) && styles.disabledScoreButton,
                   category === 'yahtzee' && score > 0 && styles.yahtzeeButton
                 ]}
                 onPress={() => handleScoreSelect(category)}
-                disabled={!isAvailable || gameState.rollsLeft > 0}
+                disabled={!isAvailable || gameState.rollsLeft > 0 || loading}
               >
                 <View style={styles.scoreButtonContent}>
                   <Text style={[
@@ -178,8 +219,14 @@ export default function HomeScreen() {
             {gameState.scoreSheet.upperBonus > 0 && (
               <Text style={styles.bonus}>🎁 Upper Bonus: +35 points!</Text>
             )}
-            <TouchableOpacity style={styles.playAgainButton} onPress={handlePlayAgain}>
-              <Text style={styles.playAgainText}>🎮 Play Again</Text>
+            <TouchableOpacity 
+              style={[styles.playAgainButton, loading && styles.disabledButton]} 
+              onPress={handlePlayAgain}
+              disabled={loading}
+            >
+              <Text style={styles.playAgainText}>
+                {loading ? 'Starting...' : '🎮 Play Again'}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -208,7 +255,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 10,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 10,
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 8,
   },
   gameInfo: {
     flexDirection: 'row',
@@ -238,6 +298,7 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: '#CCCCCC',
+    opacity: 0.6,
   },
   rollButtonText: {
     color: 'white',
@@ -386,7 +447,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 15,
     elevation: 2,
-    // Add visual feedback
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -395,6 +455,35 @@ const styles = StyleSheet.create({
   newGameText: {
     color: 'white',
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FF5722',
+    marginBottom: 10,
+  },
+  errorDetails: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  retryText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

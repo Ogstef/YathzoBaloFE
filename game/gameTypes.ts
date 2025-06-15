@@ -1,3 +1,4 @@
+// game/gameTypes.ts
 export interface GameState {
     dice: number[];
     selectedDice: number[];
@@ -19,18 +20,22 @@ export interface GameState {
     upperBonus: number;
     upperTotal: number;
     
-    // Lower Section
-    threeOfAKind: number | null;
-    fourOfAKind: number | null;
-    fullHouse: number | null;
-    smallStraight: number | null;
-    largeStraight: number | null;
+    // Lower Section - Match backend format (lowercase)
+    threeofkind: number | null;     // Changed from threeOfAKind
+    fourofkind: number | null;      // Changed from fourOfAKind
+    fullhouse: number | null;       // Changed from fullHouse
+    smallstraight: number | null;   // Changed from smallStraight
+    largestraight: number | null;   // Changed from largeStraight
     yahtzee: number | null;
     chance: number | null;
     lowerTotal: number;
   }
   
-  export type ScoreCategory = keyof Omit<ScoreSheet, 'upperBonus' | 'upperTotal' | 'lowerTotal'>;
+  // Update ScoreCategory to match new property names
+  export type ScoreCategory = 
+    | 'ones' | 'twos' | 'threes' | 'fours' | 'fives' | 'sixes'
+    | 'threeofkind' | 'fourofkind' | 'fullhouse' 
+    | 'smallstraight' | 'largestraight' | 'yahtzee' | 'chance';
   
   export interface ScoreOption {
     category: ScoreCategory;
