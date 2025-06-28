@@ -1,9 +1,10 @@
 // hooks/useGame.ts
+import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { GameState, ScoreCategory } from '../game/gameTypes';
 import { BackendGameState, gameApi, PossibleScores } from '../services/gameApi';
 
-// Convert backend format to frontend format (now they match!)
+// Convert backend format to frontend format
 const mapBackendToFrontend = (backendState: BackendGameState): GameState => ({
   dice: backendState.dice,
   selectedDice: [], // Frontend manages selected dice
@@ -15,6 +16,8 @@ const mapBackendToFrontend = (backendState: BackendGameState): GameState => ({
 });
 
 export const useGame = () => {
+  const { user, isAuthenticated } = useAuth();
+  
   const [gameState, setGameState] = useState<GameState>({
     dice: [1, 1, 1, 1, 1],
     selectedDice: [],
@@ -23,8 +26,8 @@ export const useGame = () => {
     scoreSheet: {
       ones: null, twos: null, threes: null, fours: null, fives: null, sixes: null,
       upperBonus: 0, upperTotal: 0,
-      threeOfkind: null, fourOfkind: null, fullHouse: null,
-      smallStraight: null, largeStraight: null, yahtzee: null, chance: null,
+      threeofkind: null, fourofkind: null, fullhouse: null,
+      smallstraight: null, largestraight: null, yahtzee: null, chance: null,
       lowerTotal: 0
     },
     gameComplete: false,
@@ -36,14 +39,26 @@ export const useGame = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-fetch possible scores when dice change
+  // Auto-fetch possible scores when dice change and user is authenticated
   useEffect(() => {
-    if (currentGameId && gameState.rollsLeft < 3) {
+    if (currentGameId && gameState.rollsLeft < 3 && isAuthenticated) {
       fetchPossibleScores();
     }
-  }, [currentGameId, gameState.dice, gameState.rollsLeft]);
+  }, [currentGameId, gameState.dice, gameState.rollsLeft, isAuthenticated]);
+
+  // Auto-start game when user logs in
+  useEffect(() => {
+    if (isAuthenticated && !currentGameId) {
+      newGame();
+    }
+  }, [isAuthenticated]);
 
   const handleApiCall = async <T>(apiCall: () => Promise<T>): Promise<T | null> => {
+    if (!isAuthenticated) {
+      setError('Please log in to play the game');
+      return null;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -59,8 +74,13 @@ export const useGame = () => {
     }
   };
 
-  const newGame = async (playerName: string = 'Player') => {
-    const result = await handleApiCall(() => gameApi.createNewGame(playerName));
+  const newGame = async () => {
+    if (!isAuthenticated) {
+      setError('Please log in to start a new game');
+      return;
+    }
+
+    const result = await handleApiCall(() => gameApi.createNewGame());
     if (result) {
       setCurrentGameId(result.gameId);
       setGameState(mapBackendToFrontend(result));
@@ -97,7 +117,7 @@ export const useGame = () => {
   const scoreCategory = async (category: ScoreCategory) => {
     if (!currentGameId || gameState.scoreSheet[category] !== null) return;
 
-    // Convert frontend category names to backend format (now they match!)
+    // Convert frontend category names to backend format
     const categoryMap: { [key in ScoreCategory]: string } = {
       ones: 'ones',
       twos: 'twos', 
@@ -105,11 +125,11 @@ export const useGame = () => {
       fours: 'fours',
       fives: 'fives',
       sixes: 'sixes',
-      threeOfkind: 'threeofkind',
-      fourOfkind: 'fourofkind',
-      fullHouse: 'fullhouse',
-      smallStraight: 'smallStraight',
-      largeStraight: 'largeStraight',
+      threeofkind: 'threeofkind',
+      fourofkind: 'fourofkind',
+      fullhouse: 'fullhouse',
+      smallstraight: 'smallstraight',
+      largestraight: 'largestraight',
       yahtzee: 'yahtzee',
       chance: 'chance'
     };
@@ -131,13 +151,9 @@ export const useGame = () => {
   const fetchPossibleScores = async () => {
     if (!currentGameId) return;
 
-    console.log('🎯 Fetching possible scores for game:', currentGameId);
     const result = await handleApiCall(() => gameApi.getPossibleScores(currentGameId));
     if (result) {
-      console.log('📊 Received possible scores:', result);
       setPossibleScores(result);
-    } else {
-      console.log('❌ Failed to fetch possible scores');
     }
   };
 
@@ -149,16 +165,16 @@ export const useGame = () => {
       { category: 'fours', name: 'Fours' },
       { category: 'fives', name: 'Fives' },
       { category: 'sixes', name: 'Sixes' },
-      { category: 'threeOfkind', name: 'Three of a Kind' },
-      { category: 'fouroOkind', name: 'Four of a Kind' },
-      { category: 'fullHouse', name: 'Full House' },
-      { category: 'smallStraight', name: 'Small Straight' },
-      { category: 'largeStraight', name: 'Large Straight' },
+      { category: 'threeofkind', name: 'Three of a Kind' },
+      { category: 'fourofkind', name: 'Four of a Kind' },
+      { category: 'fullhouse', name: 'Full House' },
+      { category: 'smallstraight', name: 'Small Straight' },
+      { category: 'largestraight', name: 'Large Straight' },
       { category: 'yahtzee', name: 'YAHTZEE!' },
       { category: 'chance', name: 'Chance' }
     ];
 
-    // Map backend possible scores to frontend format (now they match!)
+    // Map backend possible scores to frontend format
     const scoreMap: { [key in ScoreCategory]: keyof PossibleScores } = {
       ones: 'ones',
       twos: 'twos',
@@ -166,11 +182,11 @@ export const useGame = () => {
       fours: 'fours',
       fives: 'fives',
       sixes: 'sixes',
-      threeOfkind: 'threeOfkind',       // Now matches exactly
-      fourOfkind: 'fourOfkind',         // Now matches exactly
-      fullHouse: 'fullHouse',           // Now matches exactly
-      smallStraight: 'smallStraight',   // Now matches exactly
-      largeStraight: 'largeStraight',   // Now matches exactly
+      threeofkind: 'threeofkind',
+      fourofkind: 'fourofkind',
+      fullhouse: 'fullhouse',
+      smallstraight: 'smallstraight',
+      largestraight: 'largestraight',
       yahtzee: 'yahtzee',
       chance: 'chance'
     };
@@ -216,6 +232,7 @@ export const useGame = () => {
 
     return categories.map(({ category, name }) => {
       let score = 0;
+      const isAvailable = gameState.scoreSheet[category] === null;
       
       if (possibleScores && possibleScores[scoreMap[category]] !== undefined) {
         score = possibleScores[scoreMap[category]];
@@ -226,34 +243,29 @@ export const useGame = () => {
         console.log(`🔄 Using local calculation for ${name}:`, score);
       }
       
-      const isAvailable = gameState.scoreSheet[category] === null;
-      console.log(`Final score for ${name} (${category}):`, score, 'Available:', isAvailable);
+      console.log(`Final score for ${name} (${category}): ${score} Available: ${isAvailable}`);
       
       return {
         category,
         name,
-        score,
+        score: score, // Ensure this is always a number
         isAvailable
       };
     });
   };
-
-  // Auto-start game on hook initialization
-  useEffect(() => {
-    newGame('Player');
-  }, []);
 
   return {
     gameState,
     currentGameId,
     loading,
     error,
-    possibleScores, // Add this line - export the possibleScores state
+    possibleScores,
     rollDice,
     toggleDie,
     scoreCategory,
     getPossibleScores,
     newGame,
-    fetchPossibleScores
+    fetchPossibleScores,
+    isAuthenticated, // Export authentication status
   };
 };

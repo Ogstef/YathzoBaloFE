@@ -1,8 +1,10 @@
+// app/(tabs)/index.tsx - Updated with debug mode toggle
+import { DebugApiComponent } from '@/components/DebugApiComponent';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Die from '@/components/objects/Die';
 import { useGame } from '@/hooks/useGame';
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
@@ -11,7 +13,7 @@ export default function HomeScreen() {
     currentGameId, 
     loading, 
     error,
-    possibleScores, // Add this line
+    possibleScores,
     rollDice, 
     toggleDie, 
     getPossibleScores, 
@@ -20,6 +22,7 @@ export default function HomeScreen() {
   } = useGame();
   
   const scrollViewRef = useRef<ScrollView>(null);
+  const [showDebug, setShowDebug] = useState(false); // Show debug in development mode
 
   const handleScoreSelect = async (category: any) => {
     await scoreCategory(category);
@@ -34,7 +37,7 @@ export default function HomeScreen() {
         { 
           text: 'Yes', 
           onPress: async () => {
-            await newGame('Player');
+            await newGame();
             setTimeout(() => {
               scrollViewRef.current?.scrollTo({ y: 0, animated: true });
             }, 100);
@@ -45,11 +48,29 @@ export default function HomeScreen() {
   };
 
   const handlePlayAgain = async () => {
-    await newGame('Player');
+    await newGame();
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }, 100);
   };
+
+  // Show debug component if enabled
+  if (showDebug) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.debugHeader}>
+          <Text style={styles.debugTitle}>🔧 Debug Mode</Text>
+          <TouchableOpacity 
+            style={styles.toggleButton} 
+            onPress={() => setShowDebug(false)}
+          >
+            <Text style={styles.toggleButtonText}>Hide Debug</Text>
+          </TouchableOpacity>
+        </View>
+        <DebugApiComponent />
+      </ThemedView>
+    );
+  }
 
   // Show error if API calls fail
   if (error) {
@@ -58,9 +79,19 @@ export default function HomeScreen() {
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>❌ Connection Error</Text>
           <Text style={styles.errorDetails}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => newGame('Player')}>
-            <Text style={styles.retryText}>🔄 Retry</Text>
-          </TouchableOpacity>
+          <View style={styles.errorButtons}>
+            <TouchableOpacity style={styles.retryButton} onPress={() => newGame()}>
+              <Text style={styles.retryText}>🔄 Retry</Text>
+            </TouchableOpacity>
+            {__DEV__ && (
+              <TouchableOpacity 
+                style={[styles.retryButton, styles.debugToggleButton]} 
+                onPress={() => setShowDebug(true)}
+              >
+                <Text style={styles.retryText}>🔧 Debug</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </ThemedView>
     );
@@ -74,16 +105,26 @@ export default function HomeScreen() {
       >
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>YathzoBalo! 🎲</ThemedText>
-          <TouchableOpacity 
-            style={[styles.newGameButton, loading && styles.disabledButton]} 
-            onPress={handleNewGame}
-            disabled={loading}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.newGameText}>
-              {loading ? '...' : 'New Game'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            {__DEV__ && (
+              <TouchableOpacity 
+                style={[styles.newGameButton, styles.debugButton]} 
+                onPress={() => setShowDebug(true)}
+              >
+                <Text style={styles.newGameText}>🔧</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={[styles.newGameButton, loading && styles.disabledButton]} 
+              onPress={handleNewGame}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.newGameText}>
+                {loading ? '...' : 'New Game'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Connection Status */}
@@ -139,9 +180,11 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>📊 Choose Your Score:</Text>
           
           {/* Debug info */}
-          <Text style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 10 }}>
-            Debug: Dice=[{gameState.dice.join(',')}] GameId={currentGameId} PossibleScores={possibleScores ? 'loaded' : 'null'}
-          </Text>
+          {__DEV__ && (
+            <Text style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 10 }}>
+              Debug: Dice=[{gameState.dice.join(',')}] GameId={currentGameId} PossibleScores={possibleScores ? 'loaded' : 'null'}
+            </Text>
+          )}
           
           {/* Upper Section */}
           <View style={styles.scoreGroup}>
@@ -256,6 +299,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     marginBottom: 10,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  debugHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FF6B35',
+  },
+  debugTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  toggleButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  toggleButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
   statusContainer: {
     flexDirection: 'row',
@@ -452,6 +521,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  debugButton: {
+    backgroundColor: '#9C27B0',
+    paddingHorizontal: 8,
+  },
   newGameText: {
     color: 'white',
     fontSize: 12,
@@ -475,11 +548,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
+  errorButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   retryButton: {
     backgroundColor: '#2196F3',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
+  },
+  debugToggleButton: {
+    backgroundColor: '#9C27B0',
   },
   retryText: {
     color: 'white',
