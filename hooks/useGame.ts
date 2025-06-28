@@ -1,4 +1,4 @@
-// hooks/useGame.ts
+// hooks/useGame.ts - FIXED VERSION
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { GameState, ScoreCategory } from '../game/gameTypes';
@@ -10,7 +10,7 @@ const mapBackendToFrontend = (backendState: BackendGameState): GameState => ({
   selectedDice: [], // Frontend manages selected dice
   rollsLeft: backendState.rollsLeft,
   currentRound: backendState.currentRound,
-  scoreSheet: backendState.scoreSheet, // Direct assignment now works
+  scoreSheet: backendState.scoreSheet,
   gameComplete: backendState.gameComplete,
   totalScore: backendState.totalScore,
 });
@@ -54,7 +54,10 @@ export const useGame = () => {
   }, [isAuthenticated]);
 
   const handleApiCall = async <T>(apiCall: () => Promise<T>): Promise<T | null> => {
+    console.log('🔄 handleApiCall started');
+    
     if (!isAuthenticated) {
+      console.log('❌ handleApiCall: Not authenticated');
       setError('Please log in to play the game');
       return null;
     }
@@ -62,12 +65,14 @@ export const useGame = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('📡 Making API call...');
       const result = await apiCall();
+      console.log('✅ API call successful:', result);
       return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      console.error('💥 API call failed:', err);
       setError(errorMessage);
-      console.error('API call failed:', err);
       return null;
     } finally {
       setLoading(false);
@@ -75,16 +80,41 @@ export const useGame = () => {
   };
 
   const newGame = async () => {
+    console.log('🎮 New Game button clicked!');
+    console.log('🔐 Is authenticated:', isAuthenticated);
+    console.log('👤 User object:', user);
+    
     if (!isAuthenticated) {
+      console.log('❌ Not authenticated');
       setError('Please log in to start a new game');
       return;
     }
 
+    console.log('🚀 Starting API call for new game...');
+    
+    // Test backend connectivity first
+    console.log('🔍 Testing backend connection...');
+    const isBackendReachable = await gameApi.testConnection();
+    console.log('🌐 Backend reachable:', isBackendReachable);
+    
+    if (!isBackendReachable) {
+      setError('Cannot connect to game server. Please check your connection.');
+      return;
+    }
+    
     const result = await handleApiCall(() => gameApi.createNewGame());
+    console.log('📦 API result:', result);
+    
     if (result) {
+      console.log('✅ Setting new game state');
+      console.log('🎯 New game backend response:', result);
+      
       setCurrentGameId(result.gameId);
       setGameState(mapBackendToFrontend(result));
       setPossibleScores(null);
+    } else {
+      console.log('❌ No result from API');
+      console.log('📋 Current error state:', error);
     }
   };
 
@@ -157,6 +187,7 @@ export const useGame = () => {
     }
   };
 
+  // 🔧 FIXED: This function was the main issue!
   const getPossibleScores = () => {
     const categories: Array<{ category: ScoreCategory; name: string }> = [
       { category: 'ones', name: 'Ones' },
@@ -191,7 +222,7 @@ export const useGame = () => {
       chance: 'chance'
     };
 
-    // Fallback score calculation if API doesn't provide scores
+    // 🔧 FIXED: Proper score calculation function with correct logic
     const calculateLocalScore = (dice: number[], category: ScoreCategory): number => {
       const counts = dice.reduce((acc, die) => {
         acc[die] = (acc[die] || 0) + 1;
@@ -231,24 +262,38 @@ export const useGame = () => {
     };
 
     return categories.map(({ category, name }) => {
-      let score = 0;
-      const isAvailable = gameState.scoreSheet[category] === null;
+      // 🔧 FIXED: Proper check for availability
+      // A category is available if its value in the scoreSheet is null or undefined
+      const isAvailable = gameState.scoreSheet[category] === null || gameState.scoreSheet[category] === undefined;
       
-      if (possibleScores && possibleScores[scoreMap[category]] !== undefined) {
-        score = possibleScores[scoreMap[category]];
-        console.log(`🌐 Using API score for ${name}:`, score);
+      let score = 0;
+      
+      // Only calculate score if category is available
+      if (isAvailable) {
+        if (possibleScores && possibleScores[scoreMap[category]] !== undefined) {
+          score = possibleScores[scoreMap[category]];
+          console.log(`🌐 Using API score for ${name}:`, score);
+        } else {
+          // Fallback to local calculation
+          score = calculateLocalScore(gameState.dice, category);
+          console.log(`🔄 Using local calculation for ${name}:`, score);
+        }
       } else {
-        // Fallback to local calculation
-        score = calculateLocalScore(gameState.dice, category);
-        console.log(`🔄 Using local calculation for ${name}:`, score);
+        // If not available, show the actual scored value
+        score = gameState.scoreSheet[category] || 0;
+        console.log(`📋 Category ${name} already used with score:`, score);
       }
       
-      console.log(`Final score for ${name} (${category}): ${score} Available: ${isAvailable}`);
+      console.log(`Final result for ${name} (${category}):`, {
+        score,
+        isAvailable,
+        actualScoreSheetValue: gameState.scoreSheet[category]
+      });
       
       return {
         category,
         name,
-        score: score, // Ensure this is always a number
+        score: score,
         isAvailable
       };
     });
@@ -266,6 +311,6 @@ export const useGame = () => {
     getPossibleScores,
     newGame,
     fetchPossibleScores,
-    isAuthenticated, // Export authentication status
+    isAuthenticated,
   };
 };

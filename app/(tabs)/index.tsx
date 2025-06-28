@@ -1,8 +1,9 @@
-// app/(tabs)/index.tsx - Updated with debug mode toggle
+// app/(tabs)/index.tsx - FIXED VERSION
 import { DebugApiComponent } from '@/components/DebugApiComponent';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Die from '@/components/objects/Die';
+import { useAuth } from '@/contexts/AuthContext';
 import { useGame } from '@/hooks/useGame';
 import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -22,13 +23,16 @@ export default function HomeScreen() {
   } = useGame();
   
   const scrollViewRef = useRef<ScrollView>(null);
-  const [showDebug, setShowDebug] = useState(false); // Show debug in development mode
+  const [showDebug, setShowDebug] = useState(false);
+  const { user, isAuthenticated } = useAuth();
 
   const handleScoreSelect = async (category: any) => {
     await scoreCategory(category);
   };
 
   const handleNewGame = () => {
+    console.log('🔴 NEW GAME BUTTON CLICKED!');
+    
     Alert.alert(
       'New Game',
       'Start a new game?',
@@ -37,6 +41,10 @@ export default function HomeScreen() {
         { 
           text: 'Yes', 
           onPress: async () => {
+            console.log('🔴 USER CLICKED YES!');
+            console.log('🔐 Auth state:', { isAuthenticated, user });
+            console.log('🎮 Current game ID:', currentGameId);
+            
             await newGame();
             setTimeout(() => {
               scrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -175,14 +183,14 @@ export default function HomeScreen() {
           <Text style={styles.diceInfoText}>Dice: [{gameState.dice.join(', ')}]</Text>
         </View>
 
-        {/* Clickable Scores */}
+        {/* 🔧 FIXED: Score Selection Section */}
         <View style={styles.scoresSection}>
           <Text style={styles.sectionTitle}>📊 Choose Your Score:</Text>
           
           {/* Debug info */}
           {__DEV__ && (
             <Text style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 10 }}>
-              Debug: Dice=[{gameState.dice.join(',')}] GameId={currentGameId} PossibleScores={possibleScores ? 'loaded' : 'null'}
+              Debug: Dice=[{gameState.dice.join(',')}] GameId={currentGameId} Round={gameState.currentRound}
             </Text>
           )}
           
@@ -195,7 +203,7 @@ export default function HomeScreen() {
                 style={[
                   styles.scoreButton, 
                   !isAvailable && styles.usedScoreButton,
-                  (gameState.rollsLeft > 0 || loading) && styles.disabledScoreButton
+                  (gameState.rollsLeft > 0 || loading) && isAvailable && styles.disabledScoreButton
                 ]}
                 onPress={() => handleScoreSelect(category)}
                 disabled={!isAvailable || gameState.rollsLeft > 0 || loading}
@@ -205,7 +213,7 @@ export default function HomeScreen() {
                     {name}
                   </Text>
                   <Text style={[styles.scoreValue, !isAvailable && styles.usedScoreText]}>
-                    {!isAvailable ? `${gameState.scoreSheet[category]} pts` : `${score} pts`}
+                    {score} pts
                   </Text>
                 </View>
                 {!isAvailable && <Text style={styles.usedLabel}>USED</Text>}
@@ -222,8 +230,8 @@ export default function HomeScreen() {
                 style={[
                   styles.scoreButton, 
                   !isAvailable && styles.usedScoreButton,
-                  (gameState.rollsLeft > 0 || loading) && styles.disabledScoreButton,
-                  category === 'yahtzee' && score > 0 && styles.yahtzeeButton
+                  (gameState.rollsLeft > 0 || loading) && isAvailable && styles.disabledScoreButton,
+                  category === 'yahtzee' && score === 50 && isAvailable && styles.yahtzeeButton
                 ]}
                 onPress={() => handleScoreSelect(category)}
                 disabled={!isAvailable || gameState.rollsLeft > 0 || loading}
@@ -232,20 +240,20 @@ export default function HomeScreen() {
                   <Text style={[
                     styles.scoreName, 
                     !isAvailable && styles.usedScoreText,
-                    category === 'yahtzee' && score > 0 && styles.yahtzeeText
+                    category === 'yahtzee' && score === 50 && isAvailable && styles.yahtzeeText
                   ]}>
                     {name}
                   </Text>
                   <Text style={[
                     styles.scoreValue, 
                     !isAvailable && styles.usedScoreText,
-                    category === 'yahtzee' && score > 0 && styles.yahtzeeText
+                    category === 'yahtzee' && score === 50 && isAvailable && styles.yahtzeeText
                   ]}>
-                    {!isAvailable ? `${gameState.scoreSheet[category]} pts` : `${score} pts`}
+                    {score} pts
                   </Text>
                 </View>
                 {!isAvailable && <Text style={styles.usedLabel}>USED</Text>}
-                {category === 'yahtzee' && score > 0 && <Text style={styles.yahtzeeLabel}>🎯 YAHTZEE!</Text>}
+                {category === 'yahtzee' && score === 50 && isAvailable && <Text style={styles.yahtzeeLabel}>🎯 YAHTZEE!</Text>}
               </TouchableOpacity>
             ))}
           </View>
